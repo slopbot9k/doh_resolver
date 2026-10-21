@@ -39,8 +39,9 @@ use `dnssec_resolver`.
 ## Configuration
 
 - `endpoint`: a JSON API URI, `https://dns.google/resolve` by default. Google
-  and Cloudflare hosts select their `DohResolverTxtFormat`; any other
-  endpoint must pass `txtFormat`.
+  and Cloudflare hosts select their `DohResolverTxtFormat` and media type
+  (`application/json`, `application/dns-json`); any other endpoint must pass
+  `txtFormat` and `mediaType`.
 - `timeout` 12 s for a whole lookup; the transport's own deadline also applies.
 - `maxResponseBytes` 65536.
 - Proxying, connection reuse and the transport's own deadline belong to your
@@ -55,13 +56,14 @@ in `cause` and `causeStackTrace` but not printed.
 
 ## Transport contract
 
-`DohResolverTransport.start(uri, maxResponseBytes: n)` returns a
+`DohResolverTransport.start(uri, mediaType: t, maxResponseBytes: n)` returns a
 `DohResolverOperation<DohResolverResponse>` (status, body, `Age`). It must not
 throw: failures complete the operation with a `DohResolverException` of the
 implementation's choosing (for example `DohResolverHttpStatusException` or
 `DohResolverTransportTimeoutException`); any other error is wrapped as
-`DohResolverTransportException`. `cancel` is idempotent, and the transport
-enforces `maxResponseBytes` while reading.
+`DohResolverTransportException`. `cancel` is idempotent. The transport
+sends `mediaType` as `Accept`, fails a response whose `Content-Type` has
+another media type, and enforces `maxResponseBytes` while reading.
 
 ## Development
 
