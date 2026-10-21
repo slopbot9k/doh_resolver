@@ -70,7 +70,7 @@ class HttpClientDohResolverTransport implements DohResolverTransport {
     return DohResolverOperation(
         done.future,
         () => fail(const DohResolverCancelledException('Request cancelled',
-            source: DohResolverCancellationSource.transport)));
+            reason: DohResolverCancellationReason.caller)));
   }
 }
 

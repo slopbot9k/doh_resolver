@@ -51,7 +51,7 @@ Lookups send `do=true`, `cd=false` and `edns_client_subnet=0.0.0.0/0`, and pad
 the URL to a multiple of 128 characters. `startTxtLookup` returns a
 cancellable `DohResolverOperation` and never throws; every deliberate failure
 is a named leaf of sealed `DohResolverException`, with RCODE, HTTP status, size
-limits, deadlines and cancellation source as typed fields. Causes are retained
+limits, deadlines and cancellation reason as typed fields. Causes are retained
 in `cause` and `causeStackTrace` but not printed.
 
 ## Transport contract

@@ -480,9 +480,9 @@ void main() {
     for (final (thrown, expected) in [
       (
         const DohResolverCancelledException('closed',
-            source: DohResolverCancellationSource.transport),
-        isA<DohResolverCancelledException>().having((error) => error.source,
-            'source', DohResolverCancellationSource.transport)
+            reason: DohResolverCancellationReason.transportClosed),
+        isA<DohResolverCancelledException>().having((error) => error.reason,
+            'reason', DohResolverCancellationReason.transportClosed)
       ),
       (
         StateError('broken'),
@@ -504,7 +504,7 @@ void main() {
       DohResolverTransportTimeoutException('opaque',
           timeout: Duration(seconds: 9)),
       DohResolverCancelledException('opaque',
-          source: DohResolverCancellationSource.transport),
+          reason: DohResolverCancellationReason.transportClosed),
       DohResolverResponseTooLargeException('opaque',
           kind: DohResolverLimitKind.responseBytes, maximum: 2048),
       DohResolverMalformedResponseException('opaque'),

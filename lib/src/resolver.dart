@@ -164,7 +164,7 @@ class DohResolver {
     return DohResolverOperation(
         result.future,
         () => abort(const DohResolverCancelledException('DNS query cancelled',
-            source: DohResolverCancellationSource.caller)));
+            reason: DohResolverCancellationReason.caller)));
   }
 }
 

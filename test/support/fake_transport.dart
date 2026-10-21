@@ -54,7 +54,7 @@ class FakeDohResolverTransport implements DohResolverTransport {
       cancellations++;
       if (!completer.isCompleted) {
         completer.completeError(const DohResolverCancelledException('cancelled',
-            source: DohResolverCancellationSource.transport));
+            reason: DohResolverCancellationReason.transportClosed));
       }
       if (throwOnCancel) throw StateError('cancel failed');
     });

@@ -42,9 +42,9 @@ class DohResolverResponse {
 /// - deliver every failure through [DohResolverOperation.result] instead of
 ///   throwing from [start], completing it with a [DohResolverException] of
 ///   their choosing, such as [DohResolverTransportTimeoutException] or
-///   [DohResolverCancelledException] with source
-///   [DohResolverCancellationSource.transport]. Any other error is wrapped as
-///   a [DohResolverTransportException];
+///   [DohResolverCancelledException] with reason
+///   [DohResolverCancellationReason.transportClosed]. Any other error is
+///   wrapped as a [DohResolverTransportException];
 /// - make [DohResolverOperation.cancel] idempotent;
 /// - verify the server certificate and enforce `maxResponseBytes` while
 ///   reading, failing with [DohResolverResponseTooLargeException];

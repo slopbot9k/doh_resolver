@@ -94,16 +94,17 @@ final class DohResolverLookupTimeoutException extends DohResolverException {
   String toString() => '$runtimeType(timeout: $timeout): $message';
 }
 
-enum DohResolverCancellationSource { caller, transport }
+/// Why a lookup was cancelled.
+enum DohResolverCancellationReason { caller, transportClosed }
 
-/// A lookup was cancelled by its caller or by the transport.
+/// A lookup cancelled by its caller or by closing its transport.
 final class DohResolverCancelledException extends DohResolverException {
-  final DohResolverCancellationSource source;
+  final DohResolverCancellationReason reason;
   const DohResolverCancelledException(super.message,
-      {required this.source, super.cause, super.causeStackTrace});
+      {required this.reason, super.cause, super.causeStackTrace});
 
   @override
-  String toString() => '$runtimeType(source: ${source.name}): $message';
+  String toString() => '$runtimeType(reason: ${reason.name}): $message';
 }
 
 /// The resolver answered with a non-zero DNS RCODE, such as 3 (NXDOMAIN).
