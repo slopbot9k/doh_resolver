@@ -22,15 +22,13 @@ class DohResolverOperation<T> {
 
 void _noop() {}
 
-/// A complete HTTPS response from a DoH resolver.
+/// The body of a 200 response from a DoH resolver.
 class DohResolverResponse {
-  final int statusCode;
   final List<int> body;
 
   /// Time the response spent in HTTP caches, from its `Age` header.
   final Duration age;
-  DohResolverResponse(this.statusCode, List<int> body,
-      {this.age = Duration.zero})
+  DohResolverResponse(List<int> body, {this.age = Duration.zero})
       : body = List.unmodifiable(body) {
     if (age < Duration.zero) throw ArgumentError.value(age, 'age');
   }
@@ -39,12 +37,14 @@ class DohResolverResponse {
 /// Sends the HTTPS GET requests of a [DohResolver].
 ///
 /// Implementations must:
+/// - deliver only 200 responses, failing any other status with
+///   [DohResolverHttpStatusException];
 /// - deliver every failure through [DohResolverOperation.result] instead of
 ///   throwing from [start], completing it with a [DohResolverException] of
-///   their choosing, such as [DohResolverHttpStatusException],
-///   [DohResolverTransportTimeoutException] or [DohResolverCancelledException]
-///   with source [DohResolverCancellationSource.transport]. Any other error is
-///   wrapped as a [DohResolverTransportException];
+///   their choosing, such as [DohResolverTransportTimeoutException] or
+///   [DohResolverCancelledException] with source
+///   [DohResolverCancellationSource.transport]. Any other error is wrapped as
+///   a [DohResolverTransportException];
 /// - make [DohResolverOperation.cancel] idempotent;
 /// - verify the server certificate and enforce `maxResponseBytes` while
 ///   reading, failing with [DohResolverResponseTooLargeException];

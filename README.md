@@ -57,9 +57,10 @@ in `cause` and `causeStackTrace` but not printed.
 ## Transport contract
 
 `DohResolverTransport.start(uri, mediaType: t, maxResponseBytes: n)` returns a
-`DohResolverOperation<DohResolverResponse>` (status, body, `Age`). It must not
-throw: failures complete the operation with a `DohResolverException` of the
-implementation's choosing (for example `DohResolverHttpStatusException` or
+`DohResolverOperation<DohResolverResponse>` (body, `Age`). Only 200 bodies are
+delivered; any other status fails with `DohResolverHttpStatusException`. It
+must not throw: failures complete the operation with a `DohResolverException`
+of the implementation's choosing (for example
 `DohResolverTransportTimeoutException`); any other error is wrapped as
 `DohResolverTransportException`. `cancel` is idempotent. The transport
 sends `mediaType` as `Accept`, fails a response whose `Content-Type` has

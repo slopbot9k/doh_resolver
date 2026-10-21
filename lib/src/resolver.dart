@@ -125,10 +125,6 @@ class DohResolver {
     operation.result.then((response) {
       if (result.isCompleted) return;
       try {
-        if (response.statusCode != 200) {
-          throw DohResolverHttpStatusException('DNS HTTPS request failed',
-              statusCode: response.statusCode);
-        }
         if (response.body.length > maxResponseBytes) {
           throw DohResolverResponseTooLargeException('DNS body exceeds limit',
               kind: DohResolverLimitKind.responseBytes,

@@ -34,6 +34,10 @@ class HttpClientDohResolverTransport implements DohResolverTransport {
         current.followRedirects = false;
         current.headers.set(HttpHeaders.acceptHeader, mediaType);
         final response = await current.close();
+        if (response.statusCode != HttpStatus.ok) {
+          return fail(DohResolverHttpStatusException('Request failed',
+              statusCode: response.statusCode));
+        }
         if (response.headers.contentType?.mimeType != mediaType.toLowerCase()) {
           return fail(const DohResolverMalformedResponseException(
               'Unexpected Content-Type'));
@@ -51,7 +55,7 @@ class HttpClientDohResolverTransport implements DohResolverTransport {
         final age =
             int.tryParse(response.headers.value(HttpHeaders.ageHeader) ?? '');
         if (!done.isCompleted) {
-          done.complete(DohResolverResponse(response.statusCode, body,
+          done.complete(DohResolverResponse(body,
               age: Duration(seconds: age != null && age > 0 ? age : 0)));
         }
       } catch (error, stack) {

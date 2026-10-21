@@ -126,15 +126,6 @@ void main() {
             resolver: resolver, maxAnswers: -1),
         throwsArgumentError);
   });
-  test('HTTP failures carry the status', () async {
-    final transport = FakeDohResolverTransport();
-    final result = DohResolver(transport: transport).lookupTxt('alice.example');
-    transport.respond(DohResolverResponse(503, []));
-    await expectLater(
-        result,
-        throwsA(isA<DohResolverHttpStatusException>()
-            .having((e) => e.statusCode, 'statusCode', 503)));
-  });
   test('the sealed resolver root catches its named leaves', () {
     expect(const DohResolverAliasLoopException('loop'),
         isA<DohResolverException>());
@@ -366,10 +357,8 @@ void main() {
       final result =
           DohResolver(transport: transport, endpoint: Uri.parse(endpoint))
               .lookupTxt('alice.example');
-      transport.respond(DohResolverResponse(
-          200,
-          utf8.encode(
-              jsonEncode(reply(answers: [rr('alice.example', 16, data)])))));
+      transport.respond(DohResolverResponse(utf8.encode(
+          jsonEncode(reply(answers: [rr('alice.example', 16, data)])))));
       expect((await result).records.single.text, text);
     });
   }
@@ -409,8 +398,7 @@ void main() {
       'random_padding': matches(r'^X+$'),
     });
     expect(transport.uri.toString().length % 128, 0);
-    transport
-        .respond(DohResolverResponse(200, utf8.encode(jsonEncode(reply()))));
+    transport.respond(DohResolverResponse(utf8.encode(jsonEncode(reply()))));
     expect((await query.result).records.single.text,
         'oa1:xmr recipient_address=valid;');
     query.cancel();
@@ -540,8 +528,8 @@ void main() {
   });
   test('scripted responses answer consecutive lookups in order', () async {
     final fake = FakeDohResolverTransport([
-      DohResolverResponse(200, utf8.encode(jsonEncode(reply()))),
-      DohResolverResponse(503, []),
+      DohResolverResponse(utf8.encode(jsonEncode(reply()))),
+      const DohResolverHttpStatusException('unavailable', statusCode: 503),
     ]);
     final resolver = DohResolver(transport: fake);
     expect((await resolver.lookupTxt('alice.example')).records, hasLength(1));
@@ -574,8 +562,7 @@ void main() {
       if (cancel) query.cancel();
       await failed;
       expect(transport.cancelled, isTrue);
-      transport
-          .respond(DohResolverResponse(200, utf8.encode(jsonEncode(reply()))));
+      transport.respond(DohResolverResponse(utf8.encode(jsonEncode(reply()))));
       await Future<void>.delayed(Duration.zero);
     });
   }
@@ -585,7 +572,6 @@ void main() {
       final result =
           DohResolver(transport: transport).lookupTxt('alice.example');
       transport.respond(DohResolverResponse(
-          200,
           utf8.encode(jsonEncode(reply(answers: [
             rr('alice.example', 5, 'pay.example'),
             rr('pay.example', 16, 'x'),
@@ -596,7 +582,7 @@ void main() {
       expect(txt.aliases.single.ttl, ttl);
       expect(txt.response!.age, Duration(seconds: age));
     }
-    expect(() => DohResolverResponse(200, [], age: const Duration(seconds: -1)),
+    expect(() => DohResolverResponse([], age: const Duration(seconds: -1)),
         throwsArgumentError);
   });
   test('unexpected parsing errors complete with an exception', () async {
@@ -606,11 +592,10 @@ void main() {
     await expectLater(result.timeout(const Duration(seconds: 1)),
         throwsA(isA<DohResolverMalformedResponseException>()));
   });
-  test('rejects HTTP, JSON and injected response limit violations', () async {
+  test('rejects JSON and injected response limit violations', () async {
     for (final response in [
-      DohResolverResponse(302, []),
-      DohResolverResponse(200, utf8.encode('bad json')),
-      DohResolverResponse(200, List.filled(65537, 0))
+      DohResolverResponse(utf8.encode('bad json')),
+      DohResolverResponse(List.filled(65537, 0))
     ]) {
       final transport = FakeDohResolverTransport();
       final result =
@@ -628,8 +613,6 @@ void main() {
 }
 
 class _ThrowingResponse implements DohResolverResponse {
-  @override
-  int get statusCode => 200;
   @override
   Duration get age => Duration.zero;
   @override
