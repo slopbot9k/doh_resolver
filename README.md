@@ -1,6 +1,6 @@
 # doh_resolver
 
-TXT lookups through DNS-over-HTTPS JSON APIs that accept only answers the
+TXT lookups through DNS over HTTPS JSON APIs that accept only answers the
 resolver marks as DNSSEC-authenticated.
 
 ## Usage
@@ -32,9 +32,9 @@ The resolver performs the DNSSEC validation; this package does not. An answer
 is accepted only when the response has rcode 0, `AD` set, `CD` and `TC` clear
 and a single TXT question for the normalized name. `DohResolverTxtResult`
 records that assertion and nothing more: a resolver that lies controls the
-result. The transport you supply must verify the endpoint certificate. The resolver sees the
-queried name and type and, without a proxy, your address. For local validation
-use `dnssec_resolver`.
+result. The transport you supply must verify the endpoint certificate. The
+resolver sees the queried name and type and, without a proxy, your address.
+For local validation use `dnssec_resolver`.
 
 ## Configuration
 
@@ -68,8 +68,13 @@ another media type, and enforces `maxResponseBytes` while reading.
 
 ## Development
 
-Run `dart tool/check.dart` from the repository root. Live resolver tests run
-with `DOH_LIVE_TESTS=1 dart test test/live_test.dart`.
+In the repository, `dart tool/check.dart` runs format, analyze, tests and a
+publish dry run, and `DOH_LIVE_TESTS=1` enables the live resolver tests.
+
+```
+dart tool/check.dart
+DOH_LIVE_TESTS=1 dart test test/live_test.dart
+```
 
 ## License
 
