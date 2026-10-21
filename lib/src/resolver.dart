@@ -82,7 +82,8 @@ class DohResolver {
     } on DohResolverInvalidNameException catch (error) {
       return DohResolverOperation.failed(error);
     }
-    // Preserve repeated endpoint parameters; resolver-supplied parameters take precedence.
+    // Preserve repeated endpoint parameters; resolver-supplied parameters take
+    // precedence.
     final parameters = <String, Object>{
       ..._endpointParameters,
       'name': '$domain.',

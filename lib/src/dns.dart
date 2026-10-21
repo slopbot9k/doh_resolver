@@ -28,6 +28,7 @@ final class DohResolverMalformedResponseException extends DohResolverException {
       {super.cause, super.causeStackTrace});
 }
 
+/// The bound a [DohResolverResponseTooLargeException] exceeded.
 enum DohResolverLimitKind {
   responseBytes,
   questions,
