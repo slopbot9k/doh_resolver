@@ -20,7 +20,7 @@ class DohResolver {
 
   /// How [endpoint] writes TXT data. Known Google and Cloudflare hosts get
   /// their format by default; any other endpoint must pass it explicitly.
-  final DnsTxtFormat txtFormat;
+  final DohResolverTxtFormat txtFormat;
   late final Map<String, List<String>> _endpointParameters;
 
   /// Creates a resolver for [endpoint], Google's JSON API by default.
@@ -33,7 +33,7 @@ class DohResolver {
       Uri? endpoint,
       this.timeout = const Duration(seconds: 12),
       this.maxResponseBytes = 65536,
-      DnsTxtFormat? txtFormat})
+      DohResolverTxtFormat? txtFormat})
       : endpoint = endpoint ??= Uri.https('dns.google', '/resolve'),
         txtFormat = txtFormat ??
             _knownTxtFormat(endpoint.host) ??
@@ -55,7 +55,7 @@ class DohResolver {
   }
 
   /// Looks up [domain]'s TXT records; see [startTxtLookup].
-  Future<ResolverAssertedTxtResult> lookupTxt(String domain) =>
+  Future<DohResolverTxtResult> lookupTxt(String domain) =>
       startTxtLookup(domain).result;
 
   /// Starts a cancellable TXT lookup for [domain].
@@ -63,8 +63,7 @@ class DohResolver {
   /// Sends `do=true`, `cd=false` and `edns_client_subnet=0.0.0.0/0`, and pads
   /// the URL to a multiple of 128 characters. Never throws: every failure is a
   /// [DohResolverException] in the result.
-  DohResolverOperation<ResolverAssertedTxtResult> startTxtLookup(
-      String domain) {
+  DohResolverOperation<DohResolverTxtResult> startTxtLookup(String domain) {
     try {
       domain = normalizeDnsName(domain);
     } on DohResolverInvalidNameException catch (error) {
@@ -95,7 +94,7 @@ class DohResolver {
           cause: error,
           causeStackTrace: stack));
     }
-    final result = Completer<ResolverAssertedTxtResult>();
+    final result = Completer<DohResolverTxtResult>();
     late Timer timer;
     void abort(DohResolverException error) {
       if (result.isCompleted) return;
@@ -124,9 +123,9 @@ class DohResolver {
               actual: response.body.length);
         }
         final body = jsonDecode(utf8.decode(response.body));
-        result.complete(
-            DnsResponse.fromJson(body, resolver: endpoint, age: response.age)
-                .authenticatedTxt(domain, txtFormat: txtFormat));
+        result.complete(DohResolverJsonResponse.fromJson(body,
+                resolver: endpoint, age: response.age)
+            .authenticatedTxt(domain, txtFormat: txtFormat));
       } on DohResolverException catch (error, stack) {
         result.completeError(error, stack);
       } on FormatException catch (_, stack) {
@@ -160,17 +159,18 @@ class DohResolver {
   }
 }
 
-DnsTxtFormat? _knownTxtFormat(String host) => switch (host) {
+DohResolverTxtFormat? _knownTxtFormat(String host) => switch (host) {
       'dns.google' ||
       'dns.google.com' ||
       '8.8.8.8' ||
       '8.8.4.4' =>
-        DnsTxtFormat.raw,
+        DohResolverTxtFormat.raw,
       'cloudflare-dns.com' ||
       'one.one.one.one' ||
       '1.1.1.1' ||
       '1.0.0.1' =>
-        DnsTxtFormat.quoted,
-      _ when host.endsWith('.cloudflare-dns.com') => DnsTxtFormat.quoted,
+        DohResolverTxtFormat.quoted,
+      _ when host.endsWith('.cloudflare-dns.com') =>
+        DohResolverTxtFormat.quoted,
       _ => null,
     };

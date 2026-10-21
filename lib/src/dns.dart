@@ -188,22 +188,22 @@ class DohResolverTxtRecord {
 }
 
 /// A question from a JSON DNS response.
-class DnsQuestion {
+class DohResolverQuestion {
   final String name;
   final int type;
-  const DnsQuestion(this.name, this.type);
+  const DohResolverQuestion(this.name, this.type);
 }
 
 /// TXT records from an AD-flagged resolver response. An empty [records] list is
 /// a NODATA answer the resolver asserts is authenticated.
-final class ResolverAssertedTxtResult {
+final class DohResolverTxtResult {
   final String question;
   final String canonicalName;
   final Uri resolver;
   final List<DohResolverTxtRecord> records;
   final List<DohResolverRecord> aliases;
-  final DnsResponse? response;
-  ResolverAssertedTxtResult(
+  final DohResolverJsonResponse? response;
+  DohResolverTxtResult(
       {required this.question,
       required this.canonicalName,
       required this.resolver,
@@ -225,18 +225,18 @@ final class ResolverAssertedTxtResult {
 }
 
 /// A bounded, validated JSON DNS response from [resolver].
-class DnsResponse {
+class DohResolverJsonResponse {
   final Uri resolver;
   final int status;
   final bool? authenticatedData;
   final bool? checkingDisabled;
   final bool? truncated;
-  final List<DnsQuestion> questions;
+  final List<DohResolverQuestion> questions;
   final List<DohResolverRecord> answers;
 
   /// The HTTP cache age already subtracted from the answer TTLs.
   final Duration age;
-  DnsResponse._(
+  DohResolverJsonResponse._(
       this.resolver,
       this.status,
       this.authenticatedData,
@@ -249,7 +249,7 @@ class DnsResponse {
   /// Validates [json] from a DoH JSON API. Answer TTLs are reduced by the
   /// response's HTTP cache [age] and normalized by the DNS TTL rules. The
   /// `Question` and `Answer` lists are each bounded by [maxAnswers].
-  factory DnsResponse.fromJson(Object? json,
+  factory DohResolverJsonResponse.fromJson(Object? json,
       {required Uri resolver,
       int maxAnswers = 64,
       Duration age = Duration.zero}) {
@@ -290,7 +290,7 @@ class DnsResponse {
       }
     }
 
-    final questions = <DnsQuestion>[];
+    final questions = <DohResolverQuestion>[];
     for (final q in rawQuestions) {
       if (q is! Map ||
           q['type'] is! int ||
@@ -298,7 +298,7 @@ class DnsResponse {
           (q['type'] as int) > 0xffff) {
         throw malformed;
       }
-      questions.add(DnsQuestion(name(q['name']), q['type'] as int));
+      questions.add(DohResolverQuestion(name(q['name']), q['type'] as int));
     }
     final answers = <DohResolverRecord>[];
     for (final a in rawAnswers) {
@@ -318,15 +318,22 @@ class DnsResponse {
           ttl: effectiveDnsTtl(a['TTL'] as int, age: age),
           data: a['data'] as String));
     }
-    return DnsResponse._(resolver, status, flag('AD'), flag('CD'), flag('TC'),
-        List.unmodifiable(questions), List.unmodifiable(answers), age);
+    return DohResolverJsonResponse._(
+        resolver,
+        status,
+        flag('AD'),
+        flag('CD'),
+        flag('TC'),
+        List.unmodifiable(questions),
+        List.unmodifiable(answers),
+        age);
   }
 
   /// The TXT records answering [domain], following at most [maxOwnerVisits]
   /// owners through CNAMEs. Requires a successful, AD-flagged, untruncated
   /// response with checking enabled and a single matching TXT question.
-  ResolverAssertedTxtResult authenticatedTxt(String domain,
-      {required DnsTxtFormat txtFormat, int maxOwnerVisits = 8}) {
+  DohResolverTxtResult authenticatedTxt(String domain,
+      {required DohResolverTxtFormat txtFormat, int maxOwnerVisits = 8}) {
     domain = normalizeDnsName(domain);
     if (status != 0) {
       throw DohResolverQueryFailedException('DNS query failed', rcode: status);
@@ -353,7 +360,7 @@ class DnsResponse {
       final cnames = records.where((record) => record.type == 5).toList();
       final txt = records.where((record) => record.type == 16).toList();
       if (cnames.isEmpty) {
-        return ResolverAssertedTxtResult(
+        return DohResolverTxtResult(
             question: domain,
             canonicalName: owner,
             resolver: resolver,
@@ -361,7 +368,7 @@ class DnsResponse {
                 .map((r) => DohResolverTxtRecord(
                     name: owner,
                     ttl: r.ttl,
-                    bytes: decodeDnsTxtBytes(r.data, txtFormat)))
+                    bytes: decodeDohResolverTxtBytes(r.data, txtFormat)))
                 .toList(),
             aliases: aliases,
             response: this);
@@ -383,7 +390,7 @@ class DnsResponse {
 }
 
 /// How a JSON DoH resolver writes TXT `data`; set per endpoint.
-enum DnsTxtFormat {
+enum DohResolverTxtFormat {
   /// Quoted RFC 1035 character-strings separated by spaces, with `\DDD`
   /// decimal and `\X` literal escapes, as Cloudflare returns them.
   quoted,
@@ -394,7 +401,7 @@ enum DnsTxtFormat {
 }
 
 /// Decodes JSON TXT `data` in [format] to the record's octets.
-List<int> decodeDnsTxtBytes(String value, DnsTxtFormat format,
+List<int> decodeDohResolverTxtBytes(String value, DohResolverTxtFormat format,
     {int maxPresentationLength = 8192}) {
   if (value.length > maxPresentationLength) {
     throw DohResolverResponseTooLargeException('TXT presentation exceeds limit',
@@ -415,7 +422,7 @@ List<int> decodeDnsTxtBytes(String value, DnsTxtFormat format,
       i++;
     }
   }
-  if (format == DnsTxtFormat.raw) return utf8.encode(value);
+  if (format == DohResolverTxtFormat.raw) return utf8.encode(value);
   final bytes = <int>[];
   var strings = 0;
   var i = 0;

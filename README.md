@@ -30,7 +30,7 @@ try {
 
 The resolver performs the DNSSEC validation; this package does not. An answer
 is accepted only when the response has rcode 0, `AD` set, `CD` and `TC` clear
-and a single TXT question for the normalized name. `ResolverAssertedTxtResult`
+and a single TXT question for the normalized name. `DohResolverTxtResult`
 records that assertion and nothing more: a resolver that lies controls the
 result. The transport you supply must verify the endpoint certificate. The resolver sees the
 queried name and type and, without a proxy, your address. For local validation
@@ -39,8 +39,8 @@ use `dnssec_resolver`.
 ## Configuration
 
 - `endpoint`: a JSON API URI, `https://dns.google/resolve` by default. Google
-  and Cloudflare hosts select their `DnsTxtFormat`; any other endpoint must
-  pass `txtFormat`.
+  and Cloudflare hosts select their `DohResolverTxtFormat`; any other
+  endpoint must pass `txtFormat`.
 - `timeout` 12 s for a whole lookup; the transport's own deadline also applies.
 - `maxResponseBytes` 65536.
 - Proxying, connection reuse and the transport's own deadline belong to your

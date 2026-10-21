@@ -23,8 +23,8 @@ Map<String, Object?> rr(String name, int type, String data) => {
       'data': data,
     };
 final resolver = Uri.parse('https://dns.example/resolve');
-DnsResponse decode(Object? json) =>
-    DnsResponse.fromJson(json, resolver: resolver);
+DohResolverJsonResponse decode(Object? json) =>
+    DohResolverJsonResponse.fromJson(json, resolver: resolver);
 
 void main() {
   test('only terminal-owner TXT answers are accepted; response retained', () {
@@ -35,13 +35,13 @@ void main() {
       rr('evil.example.', 16, 'evil')
     ]));
     final result = response.authenticatedTxt('Alice.Example.',
-        txtFormat: DnsTxtFormat.raw);
+        txtFormat: DohResolverTxtFormat.raw);
     expect(result.records.map((r) => r.text), ['one', 'two']);
     expect(result.canonicalName, 'pay.example');
     expect(result.aliases, hasLength(1));
     expect(result.response, same(response));
     expect(result.records.first.ttl, 60);
-    expect(result, isA<ResolverAssertedTxtResult>());
+    expect(result, isA<DohResolverTxtResult>());
   });
   for (final field in ['AD', 'CD', 'TC']) {
     test('missing or unacceptable $field never authenticates', () {
@@ -50,23 +50,23 @@ void main() {
         reply()..[field] = field != 'AD'
       ]) {
         expect(
-            () => decode(body)
-                .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+            () => decode(body).authenticatedTxt('alice.example',
+                txtFormat: DohResolverTxtFormat.raw),
             throwsA(isA<DohResolverAuthenticationUnavailableException>()));
       }
     });
   }
   test('DNS error preserves status without inferring bogus or unsigned', () {
     expect(
-        () => decode(reply()..['Status'] = 2)
-            .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+        () => decode(reply()..['Status'] = 2).authenticatedTxt('alice.example',
+            txtFormat: DohResolverTxtFormat.raw),
         throwsA(isA<DohResolverQueryFailedException>()
             .having((e) => e.rcode, 'rcode', 2)));
   });
   test('ttl is the minimum over the CNAME chain and null for NODATA', () {
-    ResolverAssertedTxtResult txt(List<Map<String, Object?>> answers) =>
-        decode(reply(answers: answers))
-            .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw);
+    DohResolverTxtResult txt(List<Map<String, Object?>> answers) =>
+        decode(reply(answers: answers)).authenticatedTxt('alice.example',
+            txtFormat: DohResolverTxtFormat.raw);
     expect(
         txt([
           rr('alice.example', 5, 'pay.example')..['TTL'] = 30,
@@ -84,7 +84,7 @@ void main() {
     final records = [
       DohResolverTxtRecord(name: 'a.example', ttl: 9, bytes: bytes)
     ];
-    final result = ResolverAssertedTxtResult(
+    final result = DohResolverTxtResult(
         question: 'a.example',
         canonicalName: 'a.example',
         resolver: resolver,
@@ -111,15 +111,19 @@ void main() {
     for (final (field, item) in [('Question', question), ('Answer', answer)]) {
       final body = reply()..[field] = List.filled(3, item);
       expect(
-          () => DnsResponse.fromJson(body, resolver: resolver, maxAnswers: 2),
+          () => DohResolverJsonResponse.fromJson(body,
+              resolver: resolver, maxAnswers: 2),
           throwsA(isA<DohResolverResponseTooLargeException>()),
           reason: field);
-      expect(DnsResponse.fromJson(body, resolver: resolver, maxAnswers: 3),
-          isA<DnsResponse>(),
+      expect(
+          DohResolverJsonResponse.fromJson(body,
+              resolver: resolver, maxAnswers: 3),
+          isA<DohResolverJsonResponse>(),
           reason: field);
     }
     expect(
-        () => DnsResponse.fromJson(reply(), resolver: resolver, maxAnswers: -1),
+        () => DohResolverJsonResponse.fromJson(reply(),
+            resolver: resolver, maxAnswers: -1),
         throwsArgumentError);
   });
   test('HTTP failures carry the status', () async {
@@ -157,22 +161,25 @@ void main() {
   ]) {
     test('rejects mismatched questions $questions', () {
       expect(
-          () => decode(reply()..['Question'] = questions)
-              .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+          () => decode(reply()..['Question'] = questions).authenticatedTxt(
+              'alice.example',
+              txtFormat: DohResolverTxtFormat.raw),
           throwsA(isA<DohResolverQuestionMismatchException>()));
     });
   }
   test('no answers is distinct from DNS failure', () {
     expect(
         decode(reply()..remove('Answer'))
-            .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw)
+            .authenticatedTxt('alice.example',
+                txtFormat: DohResolverTxtFormat.raw)
             .records,
         isEmpty);
   });
   test('rejects loops, ambiguous owners and excessive chains', () {
     expect(
         () => decode(reply(answers: [rr('alice.example', 5, 'alice.example')]))
-            .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+            .authenticatedTxt('alice.example',
+                txtFormat: DohResolverTxtFormat.raw),
         throwsA(isA<DohResolverAliasLoopException>()));
     for (final records in [
       [rr('alice.example', 5, 'pay.example'), rr('alice.example', 16, 'txt')],
@@ -182,8 +189,9 @@ void main() {
       ]
     ]) {
       expect(
-          () => decode(reply(answers: records))
-              .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+          () => decode(reply(answers: records)).authenticatedTxt(
+              'alice.example',
+              txtFormat: DohResolverTxtFormat.raw),
           throwsA(isA<DohResolverAliasAmbiguousException>()));
     }
     final chain = [
@@ -192,8 +200,8 @@ void main() {
       rr('hop7.example', 16, 'txt')
     ];
     expect(
-        () => decode(reply(answers: chain))
-            .authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw),
+        () => decode(reply(answers: chain)).authenticatedTxt('alice.example',
+            txtFormat: DohResolverTxtFormat.raw),
         throwsA(isA<DohResolverAliasTooLongException>()));
   });
   test('rejects invalid TTLs, names, record data, types and response shape',
@@ -223,17 +231,24 @@ void main() {
   });
   test('TXT chunks and decimal UTF-8 octets are decoded without loss', () {
     expect(
-        utf8.decode(decodeDnsTxtBytes(
-            r'"oa1:xmr recipient_" "address=valid;"', DnsTxtFormat.quoted)),
+        utf8.decode(decodeDohResolverTxtBytes(
+            r'"oa1:xmr recipient_" "address=valid;"',
+            DohResolverTxtFormat.quoted)),
         'oa1:xmr recipient_address=valid;');
     expect(
-        utf8.decode(
-            decodeDnsTxtBytes(r'"\195\169\032\""', DnsTxtFormat.quoted)),
+        utf8.decode(decodeDohResolverTxtBytes(
+            r'"\195\169\032\""', DohResolverTxtFormat.quoted)),
         'é "');
-    expect(utf8.decode(decodeDnsTxtBytes('"emoji 😀"', DnsTxtFormat.quoted)),
+    expect(
+        utf8.decode(decodeDohResolverTxtBytes(
+            '"emoji 😀"', DohResolverTxtFormat.quoted)),
         'emoji 😀');
-    expect(decodeDnsTxtBytes(r'"\255"', DnsTxtFormat.quoted), [255]);
-    expect(utf8.decode(decodeDnsTxtBytes('"\\😀"', DnsTxtFormat.quoted)), '😀');
+    expect(decodeDohResolverTxtBytes(r'"\255"', DohResolverTxtFormat.quoted),
+        [255]);
+    expect(
+        utf8.decode(
+            decodeDohResolverTxtBytes('"\\😀"', DohResolverTxtFormat.quoted)),
+        '😀');
     expect(() => DohResolverTxtRecord(name: 'x', ttl: 1, bytes: [255]).text,
         throwsA(isA<DohResolverMalformedResponseException>()));
   });
@@ -242,38 +257,47 @@ void main() {
       final result = decode(reply(answers: [
         rr('alice.example', 5, 'pay.example')..['TTL'] = raw,
         rr('pay.example', 16, 'x')..['TTL'] = raw,
-      ])).authenticatedTxt('alice.example', txtFormat: DnsTxtFormat.raw);
+      ])).authenticatedTxt('alice.example',
+          txtFormat: DohResolverTxtFormat.raw);
       expect(result.records.single.ttl, ttl);
       expect(result.aliases.single.ttl, ttl);
     }
   });
   test('raw TXT is taken verbatim and quoted TXT must be quoted', () {
     for (final value in ['"hello"', r'\065 x', '"unmatched']) {
-      expect(utf8.decode(decodeDnsTxtBytes(value, DnsTxtFormat.raw)), value);
+      expect(
+          utf8.decode(
+              decodeDohResolverTxtBytes(value, DohResolverTxtFormat.raw)),
+          value);
     }
-    expect(() => decodeDnsTxtBytes('lone \ud800', DnsTxtFormat.raw),
+    expect(
+        () =>
+            decodeDohResolverTxtBytes('lone \ud800', DohResolverTxtFormat.raw),
         throwsA(isA<DohResolverMalformedResponseException>()));
-    expect(decodeDnsTxtBytes('""', DnsTxtFormat.quoted), isEmpty);
-    expect(decodeDnsTxtBytes(' "" "" ', DnsTxtFormat.quoted), isEmpty);
+    expect(
+        decodeDohResolverTxtBytes('""', DohResolverTxtFormat.quoted), isEmpty);
+    expect(decodeDohResolverTxtBytes(' "" "" ', DohResolverTxtFormat.quoted),
+        isEmpty);
     for (final value in ['hello', 'a "b"', '', '   ']) {
-      expect(() => decodeDnsTxtBytes(value, DnsTxtFormat.quoted),
+      expect(
+          () => decodeDohResolverTxtBytes(value, DohResolverTxtFormat.quoted),
           throwsA(isA<DohResolverMalformedResponseException>()));
     }
   });
   test('known resolvers get their TXT format; others must choose', () {
-    DnsTxtFormat formatOf(String url) => DohResolver(
+    DohResolverTxtFormat formatOf(String url) => DohResolver(
             transport: FakeDohResolverTransport(), endpoint: Uri.parse(url))
         .txtFormat;
     expect(DohResolver(transport: FakeDohResolverTransport()).txtFormat,
-        DnsTxtFormat.raw);
-    expect(formatOf('https://dns.google/resolve'), DnsTxtFormat.raw);
+        DohResolverTxtFormat.raw);
+    expect(formatOf('https://dns.google/resolve'), DohResolverTxtFormat.raw);
     for (final host in [
       'cloudflare-dns.com',
       'security.cloudflare-dns.com',
       'one.one.one.one',
       '1.1.1.1'
     ]) {
-      expect(formatOf('https://$host/dns-query'), DnsTxtFormat.quoted);
+      expect(formatOf('https://$host/dns-query'), DohResolverTxtFormat.quoted);
     }
     expect(() => formatOf('https://resolver.example/resolve'),
         throwsArgumentError);
@@ -281,9 +305,9 @@ void main() {
         DohResolver(
                 transport: FakeDohResolverTransport(),
                 endpoint: Uri.parse('https://dns.google/resolve'),
-                txtFormat: DnsTxtFormat.quoted)
+                txtFormat: DohResolverTxtFormat.quoted)
             .txtFormat,
-        DnsTxtFormat.quoted);
+        DohResolverTxtFormat.quoted);
   });
   for (final (endpoint, data, text) in [
     ('https://dns.google/resolve', '"hello"', '"hello"'),
@@ -315,10 +339,12 @@ void main() {
       '"\\\ud800"',
       '"\ud800 x"',
     ]) {
-      expect(() => decodeDnsTxtBytes(s, DnsTxtFormat.quoted),
+      expect(() => decodeDohResolverTxtBytes(s, DohResolverTxtFormat.quoted),
           throwsA(isA<DohResolverMalformedResponseException>()));
     }
-    expect(() => decodeDnsTxtBytes('a' * 8193, DnsTxtFormat.quoted),
+    expect(
+        () =>
+            decodeDohResolverTxtBytes('a' * 8193, DohResolverTxtFormat.quoted),
         throwsA(isA<DohResolverResponseTooLargeException>()));
   });
   test('requests privacy flags and propagates the authenticated result',
@@ -346,7 +372,7 @@ void main() {
   test('preserves repeated endpoint parameters; resolver keys override', () {
     final transport = FakeDohResolverTransport();
     DohResolver(
-            txtFormat: DnsTxtFormat.raw,
+            txtFormat: DohResolverTxtFormat.raw,
             transport: transport,
             endpoint: Uri.parse('https://dns.example/resolve'
                 '?tag=first&tag=second&name=evil&type=A&type=AAAA'))
@@ -362,7 +388,7 @@ void main() {
     for (final name in ['a.example', 'abcd.example']) {
       final transport = FakeDohResolverTransport();
       DohResolver(
-              txtFormat: DnsTxtFormat.raw,
+              txtFormat: DohResolverTxtFormat.raw,
               transport: transport,
               endpoint: Uri.parse('https://dns.example/resolve?ct=x'))
           .startTxtLookup(name);
@@ -405,7 +431,7 @@ void main() {
     ]) {
       expect(
           () => DohResolver(
-              txtFormat: DnsTxtFormat.raw,
+              txtFormat: DohResolverTxtFormat.raw,
               transport: FakeDohResolverTransport(),
               endpoint: Uri.parse(endpoint)),
           throwsArgumentError);
